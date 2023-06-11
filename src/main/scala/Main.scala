@@ -9,10 +9,11 @@ import doobie.util.transactor.Transactor
 import components.routers.ItemRouter
 import models.Item
 import database.DatabaseConfig
+import components.services.ItemService
 
 object Main extends IOApp:
 
-  def allRoutesComplete(xa: Transactor[IO]): HttpApp[IO] = ItemRouter.endpoints(xa).orNotFound
+  def allRoutesComplete(xa: Transactor[IO]): HttpApp[IO] = ItemRouter.endpoints(xa, ItemService(xa)).orNotFound
   def run(args: List[String]): IO[ExitCode] = 
 
     EmberServerBuilder
@@ -26,7 +27,3 @@ object Main extends IOApp:
         IO.never
       })
       .as(ExitCode.Success)
-
-  def main(args: List[String]): Unit =
-    run(args)
-    println("Connection Succesfull")
