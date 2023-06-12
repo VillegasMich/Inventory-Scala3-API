@@ -10,10 +10,11 @@ import components.routers.ItemRouter
 import models.Item
 import database.DatabaseConfig
 import components.services.ItemService
+import components.repositories.ItemRepo
 
 object Main extends IOApp:
 
-  def allRoutesComplete(xa: Transactor[IO]): HttpApp[IO] = ItemRouter.endpoints(xa, ItemService(xa)).orNotFound
+  def allRoutesComplete(xa: Transactor[IO]): HttpApp[IO] = ItemRouter.endpoints(xa, ItemService(xa), ItemRepo(xa)).orNotFound
   def run(args: List[String]): IO[ExitCode] = 
 
     EmberServerBuilder
@@ -23,7 +24,7 @@ object Main extends IOApp:
       .withHttpApp(allRoutesComplete(DatabaseConfig.getConnection))
       .build
       .use(_ => {
-        println("Server started correctly on port [8080] 🚀")
+        println("Server started correctly on port [ 8080 ] 🚀")
         IO.never
       })
       .as(ExitCode.Success)

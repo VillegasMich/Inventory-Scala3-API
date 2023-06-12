@@ -1,7 +1,7 @@
 package models
 
 case class Item(
-    id: Int,
+    id: Option[Int],
     name: String,
     price: Int,
     location: String
