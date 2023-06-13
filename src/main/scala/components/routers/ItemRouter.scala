@@ -21,7 +21,6 @@ import org.http4s.circe.CirceEntityEncoder.circeEntityEncoder
 
 class ItemController(xa: Transactor[IO]): 
 
-    implicit def fullItemEncoder: EntityEncoder[IO, Item] = ???
     implicit def fullItemDecoder: EntityDecoder[IO, Item] = jsonOf
 
     private def getAllItems(itemService: ItemService, itemRepo: ItemRepo): HttpRoutes[IO] =
@@ -51,7 +50,7 @@ class ItemController(xa: Transactor[IO]):
                     res <- itemService.createItem(itemRepo, item)
                 } yield (res)
 
-                action.flatMap(item => Ok(item.asJson)) //TODO make the id visible
+                action.flatMap(item => Ok(item.asJson))
 
         
     
@@ -59,17 +58,36 @@ class ItemController(xa: Transactor[IO]):
         val dsl = Http4sDsl[IO]
         import dsl._
         HttpRoutes.of[IO]:
-            case DELETE -> Root / "item" / IntVar(id) => itemService.deleteItemById(itemRepo, id).flatMap {
-                case Left(itemNotFound) => NotFound(s"Item with id ${itemNotFound.id} was not found or could't be deleted")
-                case Right(_) => Ok("Item successfully deleted")
-            }
+            case DELETE -> Root / "item" / IntVar(id) => itemService.deleteItemById(itemRepo, id).flatMap( item => 
+                    item match {
+                        case Left(itemNotFound) => NotFound(s"Item with id ${itemNotFound.id} was not found or didn't exists")
+                        case Right(ioItem) => ioItem.flatMap(item => Ok(s"The item was successfully deleted"))
+                    }
+            )
+
+    private def updateItem(itemService: ItemService, itemRepo: ItemRepo): HttpRoutes[IO] =
+        val dsl = Http4sDsl[IO]
+        import dsl._
+        HttpRoutes.of[IO]:
+            case req @ PUT -> Root / "item" =>  
+                val action = for {
+                    item <- req.as[Item]
+                    res <- itemService.updateItem(itemRepo, item)
+                } yield (res)
+
+                action.flatMap(item => item match {
+                    case Left(itemNotFound) => NotFound(s"The item didn't exist so couldn't be updated")
+                    case Right(ioItem) => ioItem.flatMap( item => Ok(item.asJson))    
+                    }
+                )
   
 
     def endpoints(itemService: ItemService, itemRepo: ItemRepo): HttpRoutes[IO] =
         getAllItems(itemService, itemRepo) <+> 
         getItemById(itemService, itemRepo) <+>
         createItem(itemService, itemRepo) <+>
-        deleteItemById(itemService, itemRepo)
+        deleteItemById(itemService, itemRepo) <+>
+        updateItem(itemService, itemRepo)
 
 object ItemRouter:
     def endpoints(xa: Transactor[IO], itemService: ItemService, itemRepo: ItemRepo): HttpRoutes[IO] =

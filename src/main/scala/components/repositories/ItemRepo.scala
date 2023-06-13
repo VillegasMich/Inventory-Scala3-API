@@ -16,17 +16,24 @@ object ItemSQL:
 
     def selectAll: Query0[Item] =
         sql"select * from item".query[Item]
-        
 
     def selectById(id: Int): Query0[Item] = 
         sql"select * from item where id = $id".query[Item]
-        
 
     def insert(item: Item): Update0 =
         sql"insert into item (name, price, location) values (${item.name}, ${item.price}, ${item.location})".update
 
     def deleteById(id: Int): Update0 =
         sql"delete from item where id = $id".update
+    
+    def update(item: Item): Update0 =
+        sql"""update item set 
+        name = ${item.name}, 
+        price = ${item.price}, 
+        location = ${item.location}
+        where id = ${item.id.get}"""
+        .update
+
 
 class ItemRepo(xa: Transactor[IO]): 
 
@@ -39,7 +46,10 @@ class ItemRepo(xa: Transactor[IO]):
         selectById(id).option.transact(xa)
     
     def createItem(item: Item): IO[Item] = 
-        insert(item).withUniqueGeneratedKeys[Int]("id").map(id => item.copy()).transact(xa)
+        insert(item).withUniqueGeneratedKeys[Int]("id").map(generatedId => item.copy(id = generatedId.some)).transact(xa)
     
     def deleteItemById(id: Int): IO[Int] = 
         deleteById(id).run.transact(xa)
+    
+    def updateItem(item: Item): IO[Item] =
+        update(item).run.map(_ => item.copy()).transact(xa)
